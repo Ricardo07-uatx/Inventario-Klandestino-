@@ -1,68 +1,53 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistema de Inventario</title>
+  <title>Inventario de Pans</title>
   <style>
-    .stock-bajo { color: red; font-weight: bold; }
-    .error { color: darkred; text-align: center; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+    .low-stock { background-color: #ffdddd; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
     th { background-color: #f2f2f2; }
   </style>
 </head>
 <body>
-  <h1>Sistema de Inventario</h1>
+  <h1>Inventario de Pans</h1>
   
-  <section>
-    <h2>Registrar Movimiento</h2>
-    <div>
-      <select id="tipo-movimiento">
-        <option value="entrada">Entrada</option>
-        <option value="salida">Salida</option>
-      </select>
-      <input type="text" id="producto-id" placeholder="ID del producto">
-      <input type="number" id="cantidad" placeholder="Cantidad" min="1">
-      <button onclick="registrarMovimientoUI()">Registrar</button>
-    </div>
-  </section>
+  <div>
+    <select id="movementType">
+      <option value="entrada">Entrada</option>
+      <option value="salida">Salida</option>
+    </select>
+    <input type="text" id="productId" placeholder="ID Producto">
+    <input type="number" id="quantity" placeholder="Cantidad">
+    <button onclick="registrarMovimientoUI()">Registrar</button>
+  </div>
 
-  <section>
-    <h2>Inventario Actual</h2>
-    <table id="tabla-inventario">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Producto</th>
-          <th>Stock</th>
-          <th>Entradas</th>
-          <th>Salidas</th>
-        </tr>
-      </thead>
-      <tbody>
-        <!-- Los productos se cargarán aquí automáticamente -->
-      </tbody>
-    </table>
-  </section>
+  <table id="inventoryTable">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Nombre</th>
+        <th>Tipo</th>
+        <th>Entradas</th>
+        <th>Salidas</th>
+        <th>Stock</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Datos se cargarán aquí -->
+    </tbody>
+  </table>
 
   <script src="script.js"></script>
   <script>
-    // Función para el botón de registro
     async function registrarMovimientoUI() {
-      const tipo = document.getElementById('tipo-movimiento').value;
-      const productoId = document.getElementById('producto-id').value;
-      const cantidad = document.getElementById('cantidad').value;
+      const tipo = document.getElementById('movementType').value;
+      const id = document.getElementById('productId').value;
+      const cantidad = document.getElementById('quantity').value;
       
-      if (!productoId || !cantidad) {
-        alert("Completa todos los campos");
-        return;
-      }
-
-      const success = await registrarMovimiento(tipo, productoId, cantidad);
-      if (success) {
-        document.getElementById('producto-id').value = "";
-        document.getElementById('cantidad').value = "";
+      if (await registrarMovimiento(tipo, id, cantidad)) {
+        document.getElementById('productId').value = '';
+        document.getElementById('quantity').value = '';
       }
     }
   </script>
