@@ -91,6 +91,12 @@
     .movement-card {
       background: linear-gradient(135deg, #f8fafc, #f1f5f9);
     }
+    .alert-position {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+    }
   </style>
 </head>
 <body>
@@ -108,6 +114,9 @@
   </nav>
 
   <div class="container py-3">
+    <!-- Área para alertas -->
+    <div id="alertContainer" class="alert-position"></div>
+
     <!-- Tarjeta de Registro -->
     <div class="card movement-card mb-4">
       <div class="card-header">
@@ -132,7 +141,7 @@
             <input type="number" class="form-control" id="quantity" placeholder="Cantidad" min="1" required>
           </div>
           <div class="col-md-2">
-            <button class="btn btn-primary w-100" id="registerBtn">
+            <button class="btn btn-primary w-100" id="registerBtn" onclick="registrarMovimiento()">
               <i class="bi bi-check-circle me-1"></i> Registrar
             </button>
           </div>
@@ -165,6 +174,7 @@
             <tr>
               <td colspan="6" class="text-center py-4">
                 <div class="spinner-border text-primary"></div>
+                <p class="mt-2">Cargando inventario...</p>
               </td>
             </tr>
           </tbody>
@@ -174,9 +184,197 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="script.js"></script>
   <script>
-    document.getElementById('registerBtn').addEventListener('click', registrarMovimiento);
+    const API_URL = "TU_URL_APPS_SCRIPT";
+    let productosData = [];
+
+    // Cargar inventario al iniciar
+    document.addEventListener('DOMContentLoaded', cargarInventario);
+
+    // Configurar eventos
+    document.getElementById('productNumber').addEventListener('input', actualizarNombreProducto);
+
+    // Función para mostrar alertas
+    function mostrarAlerta(mensaje, tipo) {
+      const alerta = document.createElement('div');
+      alerta.className = `alert alert-${tipo} alert-dismissible fade show`;
+      alerta.innerHTML = `
+        ${mensaje}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      `;
+      
+      const container = document.getElementById('alertContainer');
+      container.appendChild(alerta);
+      
+      setTimeout(() => {
+        alerta.remove();
+      }, 5000);
+    }
+
+    // Función para cargar el inventario
+    async function cargarInventario() {
+      try {
+        mostrarLoader();
+        
+        const response = await fetch(`${API_URL}?action=getInventory`);
+        
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.status !== "success") {
+          throw new Error(result.message || "Error al cargar inventario");
+        }
+        
+        productosData = result.data;
+        renderizarInventario(result.data);
+        actualizarContadores();
+        
+      } catch (error) {
+        console.error("Error al cargar inventario:", error);
+        mostrarError(error.message);
+        mostrarAlerta("Error al cargar el inventario", "danger");
+      }
+    }
+
+    // Función para renderizar la tabla
+    function renderizarInventario(data) {
+      const tbody = document.getElementById('inventoryTable');
+      
+      if (!data || data.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="text-center py-4 text-muted">
+              No hay productos registrados
+            </td>
+          </tr>
+        `;
+        return;
+      }
+      
+      tbody.innerHTML = data.map(item => `
+        <tr class="${item[5] < 3 ? 'low-stock' : ''}">
+          <td>${item[0]}</td>
+          <td>${item[1] || '-'}</td>
+          <td class="product-type">${item[2] || '-'}</td>
+          <td>${item[3] || 0}</td>
+          <td>${item[4] || 0}</td>
+          <td><strong>${item[5] || 0}</strong></td>
+        </tr>
+      `).join('');
+    }
+
+    // Función para autocompletar nombre
+    function actualizarNombreProducto() {
+      const input = document.getElementById('productNumber');
+      const nombreField = document.getElementById('productName');
+      const feedback = document.getElementById('productSearchFeedback');
+      const numero = parseInt(input.value);
+      
+      if (!numero) {
+        nombreField.value = "";
+        input.classList.remove('product-not-found', 'searching');
+        feedback.innerHTML = "";
+        return;
+      }
+      
+      input.classList.add('searching');
+      
+      setTimeout(() => {
+        const producto = productosData.find(item => item[0] == numero);
+        
+        input.classList.remove('searching');
+        
+        if (producto) {
+          nombreField.value = producto[1];
+          input.classList.remove('product-not-found');
+          feedback.innerHTML = `<span class="text-success">✓</span>`;
+        } else {
+          nombreField.value = "Producto no encontrado";
+          input.classList.add('product-not-found');
+          feedback.innerHTML = `<span class="text-danger">✗</span>`;
+        }
+      }, 300);
+    }
+
+    // Función para registrar movimiento
+    async function registrarMovimiento() {
+      const tipo = document.getElementById('movementType').value;
+      const numero = document.getElementById('productNumber').value;
+      const cantidad = document.getElementById('quantity').value;
+      const btn = document.getElementById('registerBtn');
+      
+      if (!numero || !cantidad) {
+        mostrarAlerta("Complete todos los campos", "warning");
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Procesando...`;
+      
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ numero, tipo, cantidad })
+        });
+
+        if (!response.ok) throw new Error(`Error ${response.status}`);
+        
+        const result = await response.json();
+        
+        if (result.status !== "success") {
+          throw new Error(result.message || "Error al registrar");
+        }
+
+        mostrarAlerta(result.message, "success");
+        document.getElementById('quantity').value = "";
+        await cargarInventario();
+        
+      } catch (error) {
+        console.error("Error al registrar:", error);
+        mostrarAlerta(error.message, "danger");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="bi bi-check-circle me-1"></i> Registrar`;
+      }
+    }
+
+    // Función para mostrar loader
+    function mostrarLoader() {
+      document.getElementById('inventoryTable').innerHTML = `
+        <tr>
+          <td colspan="6" class="text-center py-4">
+            <div class="spinner-border text-primary"></div>
+            <p class="mt-2">Cargando inventario...</p>
+          </td>
+        </tr>
+      `;
+    }
+
+    // Función para mostrar error
+    function mostrarError(mensaje) {
+      document.getElementById('inventoryTable').innerHTML = `
+        <tr>
+          <td colspan="6" class="text-center text-danger py-4">
+            ${mensaje}
+          </td>
+        </tr>
+      `;
+    }
+
+    // Función para actualizar contadores
+    function actualizarContadores() {
+      if (!productosData || productosData.length === 0) return;
+      
+      const total = productosData.length;
+      const bajoStock = productosData.filter(item => item[5] < 3).length;
+      
+      document.getElementById('totalItems').textContent = total;
+      document.getElementById('lowStockItems').textContent = bajoStock;
+    }
   </script>
 </body>
 </html>
