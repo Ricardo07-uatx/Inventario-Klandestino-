@@ -1,5 +1,5 @@
 // Configuración - Reemplaza con tu URL de despliegue
-const API_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRwzq82_7N02tY3TZHX5yhcTBZ0NwdzQZJhlnLxmhNchZ6EHT3VyY9ucPrKxdRaSGxTO2vRW7MVDH94/pubhtml";
+const API_URL = "https://script.google.com/macros/s/AKfycbzMI_W9Za39R61cDxd5x0adVHRH3GGfxGDr5-iUL5wGTKCzfzwvVkChmE2yBcSex_hs/exec";
 
 document.addEventListener('DOMContentLoaded', () => {
   loadProducts();
