@@ -1,5 +1,5 @@
 // Configuración - Reemplaza con tu URL de Apps Script
-const API_URL = "https://script.google.com/macros/s/AKfycbxQdviQi__Xf8ItkN7AyoJjBBUJqBMnWRod0c3U7Ssca2OC5zJzZDQkrdOXlRzr_AxW/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyQzaj_dRtEhO5r82D6tKuyJZmJ8FCWvnVas9OhxJ8feonwUeMK24sDoYcgB0iNuF5K/exec";
 
 document.addEventListener('DOMContentLoaded', cargarInventario);
 
