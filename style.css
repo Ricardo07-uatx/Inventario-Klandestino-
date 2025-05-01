@@ -1,0 +1,20 @@
+body {
+  background-color: #f8f9fa;
+}
+
+.card {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.table-responsive {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.text-danger {
+  color: #dc3545 !important;
+}
+
+.fw-bold {
+  font-weight: bold !important;
+}
