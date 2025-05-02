@@ -3,178 +3,80 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🧥 Inventario Klandestino | Gestión de Prendas</title>
+  <title>Inventory System</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
   <style>
-    :root {
-      --color-primary: #5d38db;
-      --color-secondary: #3423a6;
-      --color-accent: #ff7e5f;
-    }
-    body {
-      background-color: #f8fafc;
-      font-family: 'Segoe UI', system-ui, sans-serif;
-    }
-    .navbar-brand {
-      font-weight: 700;
-      letter-spacing: 1px;
-    }
-    .card {
-      border: none;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-      transition: transform 0.3s ease;
-    }
-    .card:hover {
-      transform: translateY(-5px);
-    }
-    .card-header {
-      background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
-      color: white;
-      font-weight: 600;
-      border-radius: 12px 12px 0 0 !important;
-    }
-    .table-responsive {
-      max-height: 60vh;
-      overflow-y: auto;
-      border-radius: 0 0 12px 12px;
-    }
-    .table thead th {
-      background-color: #f1f5f9;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-    }
-    .low-stock {
-      background-color: #fff0f0;
-      border-left: 4px solid #ff6b6b;
-    }
-    .product-type {
-      color: var(--color-primary);
-      font-weight: 500;
-    }
-    #productName {
-      background-color: #f8f9fa;
-      font-style: italic;
-    }
-    .btn-primary {
-      background-color: var(--color-primary);
-      border: none;
-      font-weight: 500;
-    }
-    .btn-primary:hover {
-      background-color: var(--color-secondary);
-    }
-    .btn-refresh {
-      background-color: #e2e8f0;
-      color: #334155;
-    }
-    .btn-refresh:hover {
-      background-color: #cbd5e1;
-    }
-    .searching {
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%235d38db' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 12px center;
-      padding-right: 35px;
-    }
-    .product-not-found {
-      border: 2px solid #ff6b6b !important;
-      animation: shake 0.5s;
-    }
-    @keyframes shake {
-      0%, 100% { transform: translateX(0); }
-      20%, 60% { transform: translateX(-5px); }
-      40%, 80% { transform: translateX(5px); }
-    }
-    .movement-card {
-      background: linear-gradient(135deg, #f8fafc, #f1f5f9);
-    }
-    .alert-position {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 1000;
-    }
+    .table-responsive { max-height: 60vh; overflow-y: auto; }
+    .alert-position { position: fixed; top: 20px; right: 20px; z-index: 1000; }
+    #productSearchFeedback { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); }
   </style>
 </head>
 <body>
-  <!-- Navbar -->
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-    <div class="container">
-      <a class="navbar-brand d-flex align-items-center" href="#">
-        <i class="bi bi-shop me-2"></i>
-        Klandestino Inventory
-      </a>
-      <button class="btn btn-sm btn-outline-light" onclick="cargarInventario()">
-        <i class="bi bi-arrow-clockwise"></i> Actualizar
-      </button>
-    </div>
-  </nav>
-
-  <div class="container py-3">
-    <!-- Área para alertas -->
+  <div class="container py-4">
     <div id="alertContainer" class="alert-position"></div>
-
-    <!-- Tarjeta de Registro -->
-    <div class="card movement-card mb-4">
-      <div class="card-header">
-        <h5 class="mb-0"><i class="bi bi-pencil-square me-2"></i>Registrar Movimiento</h5>
+    
+    <div class="card mb-4">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="bi bi-pencil-square"></i> Register Movement</h5>
       </div>
       <div class="card-body">
-        <div class="row g-3 align-items-center">
-          <div class="col-md-2">
-            <select class="form-select" id="movementType">
-              <option value="entrada"><i class="bi bi-box-arrow-in-down me-2"></i>Entrada</option>
-              <option value="salida"><i class="bi bi-box-arrow-up me-2"></i>Salida</option>
-            </select>
+        <form id="inventoryForm">
+          <div class="row g-3 align-items-center">
+            <div class="col-md-2">
+              <select class="form-select" id="movementType" required>
+                <option value="entrada"><i class="bi bi-box-arrow-in-down"></i> Entry</option>
+                <option value="salida"><i class="bi bi-box-arrow-up"></i> Exit</option>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <input type="number" class="form-control" id="productNumber" placeholder="Product #" min="1" required>
+            </div>
+            <div class="col-md-4 position-relative">
+              <input type="text" class="form-control" id="productName" placeholder="Product name" readonly>
+              <div id="productSearchFeedback"></div>
+            </div>
+            <div class="col-md-2">
+              <input type="number" class="form-control" id="quantity" placeholder="Quantity" min="1" required>
+            </div>
+            <div class="col-md-2">
+              <button type="submit" class="btn btn-primary w-100" id="registerBtn">
+                <i class="bi bi-save"></i> Register
+              </button>
+            </div>
           </div>
-          <div class="col-md-2">
-            <input type="number" class="form-control" id="productNumber" placeholder="N° Producto" min="1" required>
-          </div>
-          <div class="col-md-4 position-relative">
-            <input type="text" class="form-control" id="productName" placeholder="Ingrese número primero" readonly>
-            <div id="productSearchFeedback" class="position-absolute end-0 top-50 translate-middle-y me-2"></div>
-          </div>
-          <div class="col-md-2">
-            <input type="number" class="form-control" id="quantity" placeholder="Cantidad" min="1" required>
-          </div>
-          <div class="col-md-2">
-            <button class="btn btn-primary w-100" id="registerBtn" onclick="registrarMovimiento()">
-              <i class="bi bi-check-circle me-1"></i> Registrar
-            </button>
-          </div>
-        </div>
+        </form>
       </div>
     </div>
 
-    <!-- Tarjeta de Inventario -->
     <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="bi bi-clipboard-data me-2"></i>Inventario Actual</h5>
+        <h5 class="mb-0"><i class="bi bi-clipboard-data"></i> Current Inventory</h5>
         <div>
-          <span class="badge bg-primary me-2">Total: <span id="totalItems">0</span></span>
-          <span class="badge bg-warning text-dark">Bajo stock: <span id="lowStockItems">0</span></span>
+          <button class="btn btn-sm btn-outline-secondary" id="refreshBtn">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+          </button>
+          <span class="badge bg-primary ms-2">Total: <span id="totalItems">0</span></span>
+          <span class="badge bg-warning text-dark ms-2">Low stock: <span id="lowStockItems">0</span></span>
         </div>
       </div>
       <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
           <thead class="table-light">
             <tr>
-              <th width="8%">N°</th>
-              <th width="30%">Nombre del producto</th>
-              <th width="25%">Tipo de producto</th>
-              <th width="12%">Entradas</th>
-              <th width="12%">Salidas</th>
-              <th width="13%">Inventario</th>
+              <th width="8%">#</th>
+              <th width="30%">Product Name</th>
+              <th width="25%">Type</th>
+              <th width="12%">Entries</th>
+              <th width="12%">Exits</th>
+              <th width="13%">Inventory</th>
             </tr>
           </thead>
           <tbody id="inventoryTable">
             <tr>
               <td colspan="6" class="text-center py-4">
                 <div class="spinner-border text-primary"></div>
-                <p class="mt-2">Cargando inventario...</p>
+                <p class="mt-2">Loading inventory...</p>
               </td>
             </tr>
           </tbody>
@@ -184,197 +86,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
-    const API_URL = "TU_URL_APPS_SCRIPT";
-    let productosData = [];
-
-    // Cargar inventario al iniciar
-    document.addEventListener('DOMContentLoaded', cargarInventario);
-
-    // Configurar eventos
-    document.getElementById('productNumber').addEventListener('input', actualizarNombreProducto);
-
-    // Función para mostrar alertas
-    function mostrarAlerta(mensaje, tipo) {
-      const alerta = document.createElement('div');
-      alerta.className = `alert alert-${tipo} alert-dismissible fade show`;
-      alerta.innerHTML = `
-        ${mensaje}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-      `;
-      
-      const container = document.getElementById('alertContainer');
-      container.appendChild(alerta);
-      
-      setTimeout(() => {
-        alerta.remove();
-      }, 5000);
-    }
-
-    // Función para cargar el inventario
-    async function cargarInventario() {
-      try {
-        mostrarLoader();
-        
-        const response = await fetch(`${API_URL}?action=getInventory`);
-        
-        if (!response.ok) {
-          throw new Error(`Error ${response.status}: ${response.statusText}`);
-        }
-        
-        const result = await response.json();
-        
-        if (result.status !== "success") {
-          throw new Error(result.message || "Error al cargar inventario");
-        }
-        
-        productosData = result.data;
-        renderizarInventario(result.data);
-        actualizarContadores();
-        
-      } catch (error) {
-        console.error("Error al cargar inventario:", error);
-        mostrarError(error.message);
-        mostrarAlerta("Error al cargar el inventario", "danger");
-      }
-    }
-
-    // Función para renderizar la tabla
-    function renderizarInventario(data) {
-      const tbody = document.getElementById('inventoryTable');
-      
-      if (!data || data.length === 0) {
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="6" class="text-center py-4 text-muted">
-              No hay productos registrados
-            </td>
-          </tr>
-        `;
-        return;
-      }
-      
-      tbody.innerHTML = data.map(item => `
-        <tr class="${item[5] < 3 ? 'low-stock' : ''}">
-          <td>${item[0]}</td>
-          <td>${item[1] || '-'}</td>
-          <td class="product-type">${item[2] || '-'}</td>
-          <td>${item[3] || 0}</td>
-          <td>${item[4] || 0}</td>
-          <td><strong>${item[5] || 0}</strong></td>
-        </tr>
-      `).join('');
-    }
-
-    // Función para autocompletar nombre
-    function actualizarNombreProducto() {
-      const input = document.getElementById('productNumber');
-      const nombreField = document.getElementById('productName');
-      const feedback = document.getElementById('productSearchFeedback');
-      const numero = parseInt(input.value);
-      
-      if (!numero) {
-        nombreField.value = "";
-        input.classList.remove('product-not-found', 'searching');
-        feedback.innerHTML = "";
-        return;
-      }
-      
-      input.classList.add('searching');
-      
-      setTimeout(() => {
-        const producto = productosData.find(item => item[0] == numero);
-        
-        input.classList.remove('searching');
-        
-        if (producto) {
-          nombreField.value = producto[1];
-          input.classList.remove('product-not-found');
-          feedback.innerHTML = `<span class="text-success">✓</span>`;
-        } else {
-          nombreField.value = "Producto no encontrado";
-          input.classList.add('product-not-found');
-          feedback.innerHTML = `<span class="text-danger">✗</span>`;
-        }
-      }, 300);
-    }
-
-    // Función para registrar movimiento
-    async function registrarMovimiento() {
-      const tipo = document.getElementById('movementType').value;
-      const numero = document.getElementById('productNumber').value;
-      const cantidad = document.getElementById('quantity').value;
-      const btn = document.getElementById('registerBtn');
-      
-      if (!numero || !cantidad) {
-        mostrarAlerta("Complete todos los campos", "warning");
-        return;
-      }
-
-      btn.disabled = true;
-      btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Procesando...`;
-      
-      try {
-        const response = await fetch(API_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ numero, tipo, cantidad })
-        });
-
-        if (!response.ok) throw new Error(`Error ${response.status}`);
-        
-        const result = await response.json();
-        
-        if (result.status !== "success") {
-          throw new Error(result.message || "Error al registrar");
-        }
-
-        mostrarAlerta(result.message, "success");
-        document.getElementById('quantity').value = "";
-        await cargarInventario();
-        
-      } catch (error) {
-        console.error("Error al registrar:", error);
-        mostrarAlerta(error.message, "danger");
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = `<i class="bi bi-check-circle me-1"></i> Registrar`;
-      }
-    }
-
-    // Función para mostrar loader
-    function mostrarLoader() {
-      document.getElementById('inventoryTable').innerHTML = `
-        <tr>
-          <td colspan="6" class="text-center py-4">
-            <div class="spinner-border text-primary"></div>
-            <p class="mt-2">Cargando inventario...</p>
-          </td>
-        </tr>
-      `;
-    }
-
-    // Función para mostrar error
-    function mostrarError(mensaje) {
-      document.getElementById('inventoryTable').innerHTML = `
-        <tr>
-          <td colspan="6" class="text-center text-danger py-4">
-            ${mensaje}
-          </td>
-        </tr>
-      `;
-    }
-
-    // Función para actualizar contadores
-    function actualizarContadores() {
-      if (!productosData || productosData.length === 0) return;
-      
-      const total = productosData.length;
-      const bajoStock = productosData.filter(item => item[5] < 3).length;
-      
-      document.getElementById('totalItems').textContent = total;
-      document.getElementById('lowStockItems').textContent = bajoStock;
-    }
-  </script>
+  <script src="config.js"></script>
+  <script src="inventory.js"></script>
 </body>
 </html>
