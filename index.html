@@ -3,78 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventario Klandestino</title>
-    <link rel="stylesheet" href="estilo.css">
+    <title>Sistema de Inventario</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
-        <h1 class="header">Registrar Movimiento</h1>
-        
-        <div class="panel">
-            <div class="summary-cards">
-                <div class="card">
-                    <h3>Total Productos</h3>
-                    <span id="total-productos">0</span>
-                </div>
-                <div class="card">
-                    <h3>Entradas</h3>
-                    <span id="total-entradas">0</span>
-                </div>
-                <div class="card">
-                    <h3>Salidas</h3>
-                    <span id="total-salidas">0</span>
-                </div>
-                <div class="card">
-                    <h3>Stock Bajo</h3>
-                    <span id="stock-bajo">0</span>
-                </div>
+        <header>
+            <h1>Sistema de Inventario</h1>
+        </header>
+
+        <section class="inventory-section">
+            <div class="controls">
+                <button id="refresh-btn">Actualizar Inventario</button>
+                <div class="loading" id="loading">Cargando...</div>
             </div>
             
-            <form id="movimiento-form" class="movimiento-form">
-                <div class="form-group">
-                    <label for="tipo-movimiento">Tipo de Movimiento</label>
-                    <select id="tipo-movimiento" required>
-                        <option value="">Seleccionar...</option>
-                        <option value="entrada">Entrada</option>
-                        <option value="salida">Salida</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="producto-id">Producto</label>
-                    <select id="producto-id" required>
-                        <option value="">Cargando productos...</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="cantidad">Cantidad</label>
-                    <input type="number" id="cantidad" min="1" required>
-                </div>
-                
-                <button type="submit" class="btn">Registrar</button>
-            </form>
-        </div>
-        
-        <div class="inventario-section">
-            <h2>Inventario Actual</h2>
-            <div id="loading">Cargando inventario...</div>
-            <div id="error-message" class="error"></div>
-            
-            <table id="inventario-table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Nombre</th>
-                        <th>Tipo</th>
-                        <th>Entradas</th>
-                        <th>Salidas</th>
-                        <th>Inventario</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
+            <div class="table-container">
+                <table id="inventory-table">
+                    <thead>
+                        <tr>
+                            <th>Número</th>
+                            <th>Tipo de Producto</th>
+                            <th>Entradas</th>
+                            <th>Salidas</th>
+                            <th>Inventario</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Datos se cargarán aquí -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <div class="error-message" id="error-message"></div>
     </div>
 
     <script src="script.js"></script>
