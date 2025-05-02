@@ -1,192 +1,110 @@
-document.addEventListener('DOMContentLoaded', function() {
-    // Configuración
-    const API_URL = "https://script.google.com/macros/s/AKfycbwZ53CGqUC_vUGg2QGcOOekHRG4WQV_4_AzriqFgy-vf7QKo5qN9s1tYFhxDwlqr3w8/exec";
-    let inventoryData = [];
-    
-    // Elementos del DOM
-    const elements = {
-        productNumber: document.getElementById('productNumber'),
-        productName: document.getElementById('productName'),
-        movementType: document.getElementById('movementType'),
-        quantity: document.getElementById('quantity'),
-        registerBtn: document.getElementById('registerBtn'),
-        inventoryTable: document.getElementById('inventoryTable'),
-        totalItems: document.getElementById('totalItems'),
-        lowStockItems: document.getElementById('lowStockItems')
-    };
+// Configuración
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz7ehDrXlxRUJN2n4wGMGkMFMUz0nnzS4rtxAcR1nx19_mdojqLeY1pjKvxLj_QbA4y/exec?action=getInventory";
 
-    // Inicialización
-    init();
+// Elementos del DOM
+const formulario = document.getElementById('movimiento-form');
+const selectProductos = document.getElementById('producto-id');
+const tablaInventario = document.querySelector('#inventario-table tbody');
+const loadingElement = document.getElementById('loading');
+const errorElement = document.getElementById('error-message');
 
-    function init() {
-        setupEventListeners();
-        loadInventory();
-    }
-
-    function setupEventListeners() {
-        elements.productNumber.addEventListener('input', handleProductSearch);
-        elements.registerBtn.addEventListener('click', registerMovement);
-    }
-
-    async function loadInventory() {
-        try {
-            showLoadingState();
-            
-            const response = await fetchWithRetry(`${API_URL}?action=getInventory&cache=${Date.now()}`);
-            
-            if (!response.ok) {
-                throw new Error(`Error del servidor: ${response.status}`);
-            }
-            
-            const result = await response.json();
-            
-            if (result.status !== "success") {
-                throw new Error(result.message || "Formato de datos inválido");
-            }
-            
-            inventoryData = result.data || [];
-            renderInventory();
-            updateCounters();
-            
-        } catch (error) {
-            console.error("Error al cargar inventario:", error);
-            showErrorState(error.message);
-            showAlert(`Error: ${error.message}`, 'danger');
-        }
-    }
-
-    async function fetchWithRetry(url, options = {}, retries = 3) {
-        try {
-            const response = await fetch(url, options);
-            
-            // Verificar si la respuesta es una redirección no deseada
-            if (response.url.includes('googleusercontent.com')) {
-                throw new Error('Redirección no autorizada');
-            }
-            
-            return response;
-        } catch (error) {
-            if (retries <= 0) throw error;
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            return fetchWithRetry(url, options, retries - 1);
-        }
-    }
-
-    function handleProductSearch() {
-        const productId = parseInt(elements.productNumber.value);
-        const product = inventoryData.find(item => item.id === productId);
-        
-        elements.productName.value = product ? product.nombre : "Producto no encontrado";
-    }
-
-    async function registerMovement() {
-        const movementData = {
-            numero: elements.productNumber.value,
-            tipo: elements.movementType.value,
-            cantidad: elements.quantity.value
-        };
-        
-        if (!movementData.numero || !movementData.cantidad) {
-            showAlert("Complete todos los campos", "warning");
-            return;
-        }
-        
-        try {
-            setRegisterButtonState(true);
-            
-            const response = await fetchWithRetry(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'registerMovement',
-                    ...movementData
-                })
-            });
-            
-            const result = await response.json();
-            
-            if (result.status !== "success") {
-                throw new Error(result.message || "Error al registrar");
-            }
-            
-            showAlert("Movimiento registrado exitosamente", "success");
-            elements.quantity.value = "";
-            await loadInventory();
-            
-        } catch (error) {
-            console.error("Error al registrar:", error);
-            showAlert(error.message, "danger");
-        } finally {
-            setRegisterButtonState(false);
-        }
-    }
-
-    function renderInventory() {
-        if (!inventoryData.length) {
-            elements.inventoryTable.innerHTML = `
-                <tr>
-                    <td colspan="6" class="text-center py-4 text-muted">
-                        No hay productos en el inventario
-                    </td>
-                </tr>
-            `;
-            return;
-        }
-        
-        elements.inventoryTable.innerHTML = inventoryData.map(item => `
-            <tr class="${item.inventario < 3 ? 'table-warning' : ''}">
-                <td>${item.id}</td>
-                <td>${item.nombre || '-'}</td>
-                <td>${item.tipo || '-'}</td>
-                <td>${item.entradas || 0}</td>
-                <td>${item.salidas || 0}</td>
-                <td><strong>${item.inventario || 0}</strong></td>
-            </tr>
-        `).join('');
-    }
-
-    function updateCounters() {
-        elements.totalItems.textContent = inventoryData.length;
-        elements.lowStockItems.textContent = inventoryData.filter(item => item.inventario < 3).length;
-    }
-
-    function showLoadingState() {
-        elements.inventoryTable.innerHTML = `
-            <tr>
-                <td colspan="6" class="text-center py-4">
-                    <div class="spinner-border text-primary"></div>
-                    <p class="mt-2">Cargando inventario...</p>
-                </td>
-            </tr>
-        `;
-    }
-
-    function showErrorState(message) {
-        elements.inventoryTable.innerHTML = `
-            <tr>
-                <td colspan="6" class="text-center text-danger py-4">
-                    <i class="bi bi-exclamation-triangle"></i> ${message}
-                </td>
-            </tr>
-        `;
-    }
-
-    function showAlert(message, type) {
-        const alert = document.createElement('div');
-        alert.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3`;
-        alert.style.zIndex = "1000";
-        alert.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
-        document.body.appendChild(alert);
-        setTimeout(() => alert.remove(), 5000);
-    }
-
-    function setRegisterButtonState(isLoading) {
-        elements.registerBtn.disabled = isLoading;
-        elements.registerBtn.innerHTML = isLoading
-            ? '<span class="spinner-border spinner-border-sm"></span> Procesando...'
-            : '<i class="bi bi-save"></i> Registrar';
+// Cargar inventario al iniciar
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const inventario = await cargarInventario();
+        actualizarSelectProductos(inventario);
+        actualizarTablaInventario(inventario);
+        loadingElement.style.display = 'none';
+    } catch (error) {
+        mostrarError('Error al cargar inventario: ' + error.message);
     }
 });
+
+// Manejar envío del formulario
+formulario.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const movimiento = {
+        tipo: document.getElementById('tipo-movimiento').value,
+        productoId: document.getElementById('producto-id').value,
+        cantidad: document.getElementById('cantidad').value
+    };
+
+    try {
+        const resultado = await registrarMovimiento(movimiento);
+        if (resultado.success) {
+            // Recargar inventario después de registrar movimiento
+            const inventario = await cargarInventario();
+            actualizarTablaInventario(inventario);
+            formulario.reset();
+        } else {
+            mostrarError(resultado.message);
+        }
+    } catch (error) {
+        mostrarError('Error al registrar movimiento: ' + error.message);
+    }
+});
+
+// Funciones para interactuar con Apps Script
+async function cargarInventario() {
+    const response = await fetch(`${APPS_SCRIPT_URL}?action=getInventory`);
+    if (!response.ok) throw new Error('Error en la respuesta del servidor');
+    return await response.json();
+}
+
+async function registrarMovimiento(movimiento) {
+    const response = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: "registerMovement",
+            data: movimiento
+        })
+    });
+    return await response.json();
+}
+
+// Funciones para actualizar la interfaz
+function actualizarTablaInventario(data) {
+    if (!data.success || !data.data) {
+        throw new Error(data.message || 'Datos de inventario no válidos');
+    }
+
+    tablaInventario.innerHTML = '';
+    document.getElementById('inventario-count').textContent = `(${data.count} productos)`;
+
+    data.data.forEach(item => {
+        const fila = document.createElement('tr');
+        fila.innerHTML = `
+            <td>${item.id}</td>
+            <td>${item.nombre}</td>
+            <td>${item.tipo}</td>
+            <td>${item.entradas}</td>
+            <td>${item.salidas || 0}</td>
+            <td class="${item.inventario <= 0 ? 'stock-cero' : ''}">${item.inventario}</td>
+        `;
+        tablaInventario.appendChild(fila);
+    });
+}
+
+function actualizarSelectProductos(inventario) {
+    selectProductos.innerHTML = '';
+    
+    const optionDefault = document.createElement('option');
+    optionDefault.value = '';
+    optionDefault.textContent = 'Seleccionar producto...';
+    selectProductos.appendChild(optionDefault);
+    
+    inventario.data.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item.id;
+        option.textContent = `${item.id} - ${item.nombre} (Disponibles: ${item.inventario})`;
+        selectProductos.appendChild(option);
+    });
+}
+
+function mostrarError(mensaje) {
+    errorElement.textContent = mensaje;
+    errorElement.style.display = 'block';
+    setTimeout(() => errorElement.style.display = 'none', 5000);
+}
