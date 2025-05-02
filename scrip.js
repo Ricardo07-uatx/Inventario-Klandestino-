@@ -1,5 +1,5 @@
 // Configuración
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz7ehDrXlxRUJN2n4wGMGkMFMUz0nnzS4rtxAcR1nx19_mdojqLeY1pjKvxLj_QbA4y/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz7ehDrXlxRUJN2n4wGMGkMFMUz0nnzS4rtxAcR1nx19_mdojqLeY1pjKvxLj_QbA4y/execaction=getInventory";
 
 // Elementos del DOM
 const elements = {
