@@ -1,200 +1,250 @@
-// Configuración global
-const API_URL = "https://script.google.com/macros/s/AKfycbzGPGQEczWDH1zlNrkVK8LGPc_hkA3GJJqWOnWWbYnBjWVEkRDgUy7W65gY1mrbDmM/exec";
-let productosData = [];
+// config.js - Archivo de configuración
+const CONFIG = {
+  API_URL: "https://script.google.com/macros/s/AKfycbzGPGQEczWDH1zlNrkVK8LGPc_hkA3GJJqWOnWWbYnBjWVEkRDgUy7W65gY1mrbDmM/exec",
+  MAX_RETRIES: 3,
+  RETRY_DELAY: 1000
+};
 
-// Inicialización al cargar la página
-document.addEventListener('DOMContentLoaded', () => {
-    cargarInventario();
-    configurarEventos();
-});
+// inventory.js - Lógica principal
+class InventoryManager {
+  constructor() {
+    this.products = [];
+    this.initialize();
+  }
 
-function configurarEventos() {
-    // Autocompletado al ingresar número de producto
-    document.getElementById('productNumber').addEventListener('input', function() {
-        const numero = parseInt(this.value);
-        const producto = productosData.find(item => item.id === numero);
-        const nombreField = document.getElementById('productName');
-        
-        if (producto) {
-            nombreField.value = producto.nombre;
-            this.classList.remove('is-invalid');
-            document.getElementById('productSearchFeedback').innerHTML = '<i class="bi bi-check-circle text-success"></i>';
-        } else {
-            nombreField.value = numero ? "Producto no encontrado" : "";
-            if (numero) this.classList.add('is-invalid');
-            document.getElementById('productSearchFeedback').innerHTML = numero ? '<i class="bi bi-exclamation-circle text-danger"></i>' : '';
-        }
+  async initialize() {
+    this.setupEventListeners();
+    await this.loadInventory();
+  }
+
+  setupEventListeners() {
+    document.getElementById('productNumber').addEventListener('input', (e) => {
+      this.handleProductSearch(e.target.value);
     });
 
-    // Validación de formulario
-    document.getElementById('inventoryForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        registrarMovimiento();
+    document.getElementById('inventoryForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      this.registerMovement();
     });
-}
 
-// Cargar datos del inventario
-async function cargarInventario() {
+    document.getElementById('refreshBtn').addEventListener('click', () => {
+      this.loadInventory();
+    });
+  }
+
+  async fetchInventory() {
     try {
-        mostrarLoader();
-        
-        const url = new URL(API_URL);
-        url.searchParams.append('action', 'getInventory');
-        
-        const response = await fetch(url.toString(), {
-            redirect: 'follow',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
+      const url = new URL(CONFIG.API_URL);
+      url.searchParams.append('action', 'getInventory');
+      url.searchParams.append('cacheBuster', Date.now());
 
-        if (!response.ok) {
-            throw new Error(`Error HTTP: ${response.status}`);
-        }
+      const response = await this.retryFetch(url, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
 
-        const result = await response.json();
-        
-        if (result.status !== "success") {
-            throw new Error(result.message || "Error en los datos recibidos");
-        }
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
-        productosData = result.data;
-        renderizarInventario(result.data);
-        actualizarContadores();
-        
+      return await response.json();
     } catch (error) {
-        console.error("Error al cargar inventario:", error);
-        mostrarError(error.message);
-        mostrarAlerta(`Error al cargar inventario: ${error.message}`, "danger");
+      console.error('Fetch error:', error);
+      throw error;
     }
-}
+  }
 
-// Mostrar datos en la tabla
-function renderizarInventario(data) {
+  async retryFetch(url, options, retries = CONFIG.MAX_RETRIES, delay = CONFIG.RETRY_DELAY) {
+    for (let i = 0; i < retries; i++) {
+      try {
+        const response = await fetch(url, options);
+        if (response.ok) return response;
+        throw new Error(`Attempt ${i + 1} failed`);
+      } catch (error) {
+        if (i === retries - 1) throw error;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  async loadInventory() {
+    try {
+      this.showLoader();
+      
+      const result = await this.fetchInventory();
+      
+      if (result.status !== "success") {
+        throw new Error(result.message || "Invalid data format");
+      }
+
+      this.products = result.data || [];
+      this.renderInventory(this.products);
+      this.updateCounters();
+      
+    } catch (error) {
+      console.error('Inventory load error:', error);
+      this.showError(error.message);
+      this.showAlert(`Error loading inventory: ${error.message}`, 'danger');
+    }
+  }
+
+  handleProductSearch(productNumber) {
+    const num = parseInt(productNumber);
+    const productField = document.getElementById('productName');
+    const feedbackElement = document.getElementById('productSearchFeedback');
+    
+    if (!num) {
+      productField.value = "";
+      feedbackElement.innerHTML = '';
+      return;
+    }
+
+    const product = this.products.find(item => item.id === num);
+    
+    if (product) {
+      productField.value = product.nombre;
+      feedbackElement.innerHTML = '<i class="bi bi-check-circle text-success"></i>';
+    } else {
+      productField.value = "Product not found";
+      feedbackElement.innerHTML = '<i class="bi bi-exclamation-circle text-danger"></i>';
+    }
+  }
+
+  async registerMovement() {
+    const type = document.getElementById('movementType').value;
+    const productNumber = document.getElementById('productNumber').value;
+    const quantity = document.getElementById('quantity').value;
+    const button = document.getElementById('registerBtn');
+
+    if (!productNumber || !quantity) {
+      this.showAlert("Please enter product number and quantity", "warning");
+      return;
+    }
+
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
+
+    try {
+      const response = await fetch(CONFIG.API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'registerMovement',
+          numero: productNumber,
+          tipo: type,
+          cantidad: quantity
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.status !== "success") {
+        throw new Error(result.message || "Registration failed");
+      }
+
+      this.showAlert(result.message, "success");
+      document.getElementById('quantity').value = "";
+      await this.loadInventory();
+      
+    } catch (error) {
+      console.error('Registration error:', error);
+      this.showAlert(error.message, "danger");
+    } finally {
+      button.disabled = false;
+      button.innerHTML = '<i class="bi bi-save"></i> Register';
+    }
+  }
+
+  renderInventory(data) {
     const tbody = document.getElementById('inventoryTable');
     
     if (!data || data.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="6" class="text-center py-4 text-muted">
-                    No hay productos registrados
-                </td>
-            </tr>
-        `;
-        return;
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="text-center py-4 text-muted">
+            No products available
+          </td>
+        </tr>
+      `;
+      return;
     }
     
     tbody.innerHTML = data.map(item => `
-        <tr class="${item.inventario < 3 ? 'table-warning' : ''}">
-            <td>${item.id}</td>
-            <td>${item.nombre || '-'}</td>
-            <td>${item.tipo || '-'}</td>
-            <td>${item.entradas || 0}</td>
-            <td>${item.salidas || 0}</td>
-            <td><strong>${item.inventario || 0}</strong></td>
-        </tr>
+      <tr class="${item.inventario < 3 ? 'table-warning' : ''}">
+        <td>${item.id}</td>
+        <td>${item.nombre || '-'}</td>
+        <td>${item.tipo || '-'}</td>
+        <td>${item.entradas || 0}</td>
+        <td>${item.salidas || 0}</td>
+        <td><strong>${item.inventario || 0}</strong></td>
+      </tr>
     `).join('');
-}
+  }
 
-// Registrar movimiento
-async function registrarMovimiento() {
-    const tipo = document.getElementById('movementType').value;
-    const numero = document.getElementById('productNumber').value;
-    const cantidad = document.getElementById('quantity').value;
-    const btn = document.getElementById('registerBtn');
+  updateCounters() {
+    const totalElement = document.getElementById('totalItems');
+    const lowStockElement = document.getElementById('lowStockItems');
     
-    // Validación
-    if (!numero || !cantidad || isNaN(numero) {
-        mostrarAlerta("Por favor ingrese un número de producto y cantidad válidos", "warning");
-        return;
+    if (!this.products || this.products.length === 0) {
+      totalElement.textContent = '0';
+      lowStockElement.textContent = '0';
+      return;
     }
-
-    btn.disabled = true;
-    btn.innerHTML = `
-        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-        Procesando...
-    `;
     
-    try {
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                action: 'registerMovement',
-                numero: numero,
-                tipo: tipo,
-                cantidad: cantidad
-            })
-        });
+    totalElement.textContent = this.products.length;
+    lowStockElement.textContent = this.products.filter(item => item.inventario < 3).length;
+  }
 
-        if (!response.ok) {
-            throw new Error(`Error HTTP: ${response.status}`);
-        }
-
-        const result = await response.json();
-        
-        if (result.status !== "success") {
-            throw new Error(result.message || "Error al registrar movimiento");
-        }
-
-        mostrarAlerta(result.message, "success");
-        document.getElementById('quantity').value = "";
-        await cargarInventario();
-        
-    } catch (error) {
-        console.error("Error al registrar movimiento:", error);
-        mostrarAlerta(error.message, "danger");
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = `<i class="bi bi-save"></i> Registrar`;
-    }
-}
-
-// Funciones auxiliares
-function mostrarLoader() {
+  showLoader() {
     document.getElementById('inventoryTable').innerHTML = `
-        <tr>
-            <td colspan="6" class="text-center py-4">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Cargando...</span>
-                </div>
-                <p class="mt-2">Cargando inventario...</p>
-            </td>
-        </tr>
+      <tr>
+        <td colspan="6" class="text-center py-4">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p class="mt-2">Loading inventory...</p>
+        </td>
+      </tr>
     `;
-}
+  }
 
-function mostrarError(mensaje) {
+  showError(message) {
     document.getElementById('inventoryTable').innerHTML = `
-        <tr>
-            <td colspan="6" class="text-center text-danger py-4">
-                <i class="bi bi-exclamation-triangle-fill"></i> ${mensaje}
-            </td>
-        </tr>
+      <tr>
+        <td colspan="6" class="text-center text-danger py-4">
+          <i class="bi bi-exclamation-triangle-fill"></i> ${message}
+        </td>
+      </tr>
     `;
+  }
+
+  showAlert(message, type) {
+    const alertContainer = document.getElementById('alertContainer') || document.body;
+    const alertId = `alert-${Date.now()}`;
+    
+    const alert = document.createElement('div');
+    alert.id = alertId;
+    alert.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3`;
+    alert.style.zIndex = "1000";
+    alert.innerHTML = `
+      <i class="bi ${type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'} me-2"></i>
+      ${message}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    alertContainer.appendChild(alert);
+    
+    setTimeout(() => {
+      const alertElement = document.getElementById(alertId);
+      if (alertElement) {
+        alertElement.remove();
+      }
+    }, 5000);
+  }
 }
 
-function mostrarAlerta(mensaje, tipo) {
-    const alerta = document.createElement('div');
-    alerta.className = `alert alert-${tipo} alert-dismissible fade show position-fixed top-0 end-0 m-3`;
-    alerta.style.zIndex = "1000";
-    alerta.innerHTML = `
-        <i class="bi ${tipo === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'} me-2"></i>
-        ${mensaje}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    `;
-    document.body.appendChild(alerta);
-    setTimeout(() => alerta.remove(), 5000);
-}
-
-function actualizarContadores() {
-    if (!productosData || productosData.length === 0) return;
-    
-    const total = productosData.length;
-    const bajoStock = productosData.filter(item => (item.inventario || 0) < 3).length;
-    
-    document.getElementById('totalItems').textContent = total;
-    document.getElementById('lowStockItems').textContent = bajoStock;
-}
+// Inicialización cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', () => {
+  const inventoryApp = new InventoryManager();
+  window.inventoryApp = inventoryApp; // Para acceso desde consola si es necesario
+});
