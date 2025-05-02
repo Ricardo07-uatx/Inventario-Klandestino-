@@ -1,132 +1,143 @@
 // Configuración
-const APPS_SCRIPT_URL = "Thttps://script.google.com/macros/s/AKfycbz7ehDrXlxRUJN2n4wGMGkMFMUz0nnzS4rtxAcR1nx19_mdojqLeY1pjKvxLj_QbA4y/exec?action=getInventory";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzdCOjuSpp4ZszyhD1kdwovuaVqdn7CVoC4_ZPz9gfhGwaowoXs_b2DDHb1r_3Wqn1k/exec";
+let inventoryData = [];
 
 // Elementos del DOM
 const elements = {
-    formulario: document.getElementById('movimiento-form'),
-    selectProductos: document.getElementById('producto-id'),
-    tablaInventario: document.querySelector('#inventario-table tbody'),
-    loadingElement: document.getElementById('loading'),
-    errorElement: document.getElementById('error-message'),
-    totalProductos: document.getElementById('total-productos'),
-    totalEntradas: document.getElementById('total-entradas'),
-    totalSalidas: document.getElementById('total-salidas'),
-    stockBajo: document.getElementById('stock-bajo')
+    tableBody: document.querySelector('#inventory-table tbody'),
+    refreshBtn: document.getElementById('refresh-btn'),
+    loading: document.getElementById('loading'),
+    error: document.getElementById('error-message')
 };
 
 // Cargar inventario al iniciar
-document.addEventListener('DOMContentLoaded', async () => {
-    try {
-        const inventario = await cargarInventario();
-        actualizarSelectProductos(inventario);
-        actualizarTablaInventario(inventario);
-        actualizarResumen(inventario);
-        elements.loadingElement.style.display = 'none';
-    } catch (error) {
-        mostrarError('Error al cargar inventario: ' + error.message);
-    }
+document.addEventListener('DOMContentLoaded', () => {
+    loadInventory();
+    
+    // Configurar actualización automática cada 30 segundos
+    setInterval(loadInventory, 30000);
 });
 
-// Manejar envío del formulario
-elements.formulario.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const movimiento = {
-        tipo: document.getElementById('tipo-movimiento').value,
-        productoId: document.getElementById('producto-id').value,
-        cantidad: document.getElementById('cantidad').value
-    };
+// Botón de actualización
+elements.refreshBtn.addEventListener('click', loadInventory);
 
+// Cargar datos del inventario
+async function loadInventory() {
     try {
-        const resultado = await registrarMovimiento(movimiento);
-        if (resultado.success) {
-            // Recargar inventario
-            const inventario = await cargarInventario();
-            actualizarTablaInventario(inventario);
-            actualizarResumen(inventario);
-            elements.formulario.reset();
-        } else {
-            mostrarError(resultado.message);
-        }
+        showLoading();
+        
+        const response = await fetch(`${APPS_SCRIPT_URL}?action=getInventory`);
+        if (!response.ok) throw new Error('Error al cargar inventario');
+        
+        const data = await response.json();
+        if (!data.success) throw new Error(data.message || 'Error en los datos');
+        
+        inventoryData = data.inventory;
+        renderInventory();
     } catch (error) {
-        mostrarError('Error al registrar movimiento: ' + error.message);
+        showError(error.message);
+    } finally {
+        hideLoading();
     }
-});
-
-// Funciones para interactuar con Apps Script
-async function cargarInventario() {
-    const response = await fetch(`${APPS_SCRIPT_URL}?action=getInventory`);
-    if (!response.ok) throw new Error('Error en la respuesta del servidor');
-    return await response.json();
 }
 
-async function registrarMovimiento(movimiento) {
-    const response = await fetch(APPS_SCRIPT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            action: "registerMovement",
-            data: movimiento
-        })
-    });
-    return await response.json();
-}
-
-// Funciones para actualizar la interfaz
-function actualizarTablaInventario(data) {
-    if (!data.success || !data.data) {
-        throw new Error(data.message || 'Datos de inventario no válidos');
-    }
-
-    elements.tablaInventario.innerHTML = '';
+// Mostrar datos en la tabla
+function renderInventory() {
+    elements.tableBody.innerHTML = '';
     
-    data.data.forEach(item => {
-        const fila = document.createElement('tr');
-        fila.innerHTML = `
-            <td>${item.id}</td>
-            <td>${item.nombre}</td>
-            <td>${item.tipo || 'N/A'}</td>
-            <td>${item.entradas || 0}</td>
-            <td>${item.salidas || 0}</td>
-            <td class="${item.inventario <= 0 ? 'stock-bajo' : ''}">${item.inventario || 0}</td>
+    inventoryData.forEach(item => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${item.numero}</td>
+            <td>${item.tipo}</td>
+            <td>${item.entradas}</td>
+            <td>${item.salidas}</td>
+            <td class="${item.inventario <= 3 ? 'low-stock' : ''}">${item.inventario}</td>
+            <td>
+                <button class="edit-btn" data-numero="${item.numero}">Editar</button>
+            </td>
         `;
-        elements.tablaInventario.appendChild(fila);
+        elements.tableBody.appendChild(row);
+    });
+    
+    // Configurar eventos de los botones de edición
+    document.querySelectorAll('.edit-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const numero = btn.getAttribute('data-numero');
+            editProduct(numero);
+        });
     });
 }
 
-function actualizarSelectProductos(data) {
-    elements.selectProductos.innerHTML = '';
+// Editar producto
+function editProduct(numero) {
+    const product = inventoryData.find(item => item.numero == numero);
+    if (!product) return;
     
-    const optionDefault = document.createElement('option');
-    optionDefault.value = '';
-    optionDefault.textContent = 'Seleccionar producto...';
-    elements.selectProductos.appendChild(optionDefault);
+    const newEntradas = prompt('Nuevo valor para Entradas:', product.entradas);
+    if (newEntradas === null) return;
     
-    data.data.forEach(item => {
-        const option = document.createElement('option');
-        option.value = item.id;
-        option.textContent = `${item.id} - ${item.nombre} (${item.inventario} disponibles)`;
-        elements.selectProductos.appendChild(option);
+    const newSalidas = prompt('Nuevo valor para Salidas:', product.salidas);
+    if (newSalidas === null) return;
+    
+    const newInventario = prompt('Nuevo valor para Inventario:', product.inventario);
+    if (newInventario === null) return;
+    
+    updateProduct(numero, {
+        entradas: parseInt(newEntradas) || 0,
+        salidas: parseInt(newSalidas) || 0,
+        inventario: parseInt(newInventario) || 0,
+        tipo: product.tipo
     });
 }
 
-function actualizarResumen(data) {
-    if (!data.success || !data.data) return;
-    
-    elements.totalProductos.textContent = data.data.length;
-    
-    const totalEntradas = data.data.reduce((sum, item) => sum + (item.entradas || 0), 0);
-    elements.totalEntradas.textContent = totalEntradas;
-    
-    const totalSalidas = data.data.reduce((sum, item) => sum + (item.salidas || 0), 0);
-    elements.totalSalidas.textContent = totalSalidas;
-    
-    const stockBajo = data.data.filter(item => (item.inventario || 0) <= 3).length;
-    elements.stockBajo.textContent = stockBajo;
+// Actualizar producto en Google Sheets
+async function updateProduct(numero, data) {
+    try {
+        showLoading();
+        
+        const response = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: "updateInventory",
+                numero: numero,
+                ...data
+            })
+        });
+        
+        const result = await response.json();
+        if (!result.success) throw new Error(result.message || 'Error al actualizar');
+        
+        // Recargar inventario después de actualizar
+        await loadInventory();
+        showMessage('Inventario actualizado correctamente', 'success');
+    } catch (error) {
+        showError(error.message);
+    } finally {
+        hideLoading();
+    }
 }
 
-function mostrarError(mensaje) {
-    elements.errorElement.textContent = mensaje;
-    elements.errorElement.style.display = 'block';
-    setTimeout(() => elements.errorElement.style.display = 'none', 5000);
+// Funciones auxiliares de UI
+function showLoading() {
+    elements.loading.style.display = 'block';
+}
+
+function hideLoading() {
+    elements.loading.style.display = 'none';
+}
+
+function showError(message) {
+    elements.error.textContent = message;
+    elements.error.style.display = 'block';
+    elements.error.className = 'error-message error';
+    setTimeout(() => elements.error.style.display = 'none', 5000);
+}
+
+function showMessage(message, type) {
+    elements.error.textContent = message;
+    elements.error.style.display = 'block';
+    elements.error.className = `error-message ${type}`;
+    setTimeout(() => elements.error.style.display = 'none', 5000);
 }
