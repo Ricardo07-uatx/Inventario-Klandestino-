@@ -1,5 +1,5 @@
 // Configuración
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzdCOjuSpp4ZszyhD1kdwovuaVqdn7CVoC4_ZPz9gfhGwaowoXs_b2DDHb1r_3Wqn1k/exec";
+const APPS_SCRIPT_URL = "https://script.googleusercontent.com/macros/echo?user_content_key=AehSKLgedYDWf54eNuwSo9X2UsABoOGsbaDrgvZToLd7FoVDJcE5VmawMuedSWoKKKGMWjLfB96lQ9eB-W7FRIVZZH2onC1VkNIfX0wAGhZepo00QrKFtQ57uexBZvZHJcNv27EekSVhLzFYkVmjWNOgRILR7Ya5FjOZmc8QymuCrVONmhaRCA9VdACn6Dp4t0JHCGQt8XKkexpRzKvlHlv5nIzyxhi35Ubk3sF4jwJKbr95xM8jGcoKsd5eODcAd3TEn0qhC0Moc_rFZskR4T91LeDVxjStjA&lib=MYdaOm6nKa1--5y7bBrA9webVB-MXoX5v";
 let inventoryData = [];
 
 // Elementos del DOM
